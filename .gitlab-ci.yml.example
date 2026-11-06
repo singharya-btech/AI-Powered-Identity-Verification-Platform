@@ -1,0 +1,123 @@
+# ==============================================================================
+# Sample GitLab CI/CD Pipeline Configuration (.gitlab-ci.yml.example)
+# AI-Powered e-KYC Verification Platform
+# Note: Requires a registered GitLab Runner (Docker executor) to execute.
+# ==============================================================================
+
+stages:
+  - test
+  - quality
+  - build
+  - package
+  - deploy
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  BACKEND_IMAGE: $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHORT_SHA
+  FRONTEND_IMAGE: $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHORT_SHA
+
+# ------------------------------------------------------------------------------
+# Stage 1: Automated Unit & Integration Tests
+# ------------------------------------------------------------------------------
+backend:test:
+  stage: test
+  image: python:3.11-slim
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 gcc libpq-dev
+    - pip install --no-cache-dir -r requirements.txt
+    - pip install --no-cache-dir pytest pytest-cov
+  script:
+    - python -m pytest backend/tests/ -v --cov=backend/app
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+    expire_in: 7 days
+
+frontend:test:
+  stage: test
+  image: node:20-alpine
+  before_script:
+    - cd frontend-react
+    - npm ci
+  script:
+    - npm test -- --run
+  artifacts:
+    when: always
+    expire_in: 7 days
+
+# ------------------------------------------------------------------------------
+# Stage 2: Code Quality & Type Checking
+# ------------------------------------------------------------------------------
+frontend:typecheck:
+  stage: quality
+  image: node:20-alpine
+  before_script:
+    - cd frontend-react
+    - npm ci
+  script:
+    - npx tsc --noEmit
+
+# ------------------------------------------------------------------------------
+# Stage 3: Production Frontend Build Verification
+# ------------------------------------------------------------------------------
+frontend:build:
+  stage: build
+  image: node:20-alpine
+  before_script:
+    - cd frontend-react
+    - npm ci
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - frontend-react/dist/
+    expire_in: 1 day
+
+# ------------------------------------------------------------------------------
+# Stage 4: Docker Image Packaging (Container Registry)
+# ------------------------------------------------------------------------------
+docker:backend:
+  stage: package
+  image: docker:24-cli
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -f Dockerfile.backend -t $BACKEND_IMAGE -t $CI_REGISTRY_IMAGE/backend:latest .
+    - docker push $BACKEND_IMAGE
+    - docker push $CI_REGISTRY_IMAGE/backend:latest
+  only:
+    - main
+
+docker:frontend:
+  stage: package
+  image: docker:24-cli
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -f Dockerfile.frontend -t $FRONTEND_IMAGE -t $CI_REGISTRY_IMAGE/frontend:latest .
+    - docker push $FRONTEND_IMAGE
+    - docker push $CI_REGISTRY_IMAGE/frontend:latest
+  only:
+    - main
+
+# ------------------------------------------------------------------------------
+# Stage 5: Kubernetes Deployment (Future Phase)
+# ------------------------------------------------------------------------------
+k8s:deploy:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  script:
+    - kubectl set image deployment/ekyc-backend backend=$BACKEND_IMAGE -n ekyc-platform
+    - kubectl set image deployment/ekyc-frontend frontend=$FRONTEND_IMAGE -n ekyc-platform
+    - kubectl rollout status deployment/ekyc-backend -n ekyc-platform
+    - kubectl rollout status deployment/ekyc-frontend -n ekyc-platform
+  when: manual
+  only:
+    - main
+

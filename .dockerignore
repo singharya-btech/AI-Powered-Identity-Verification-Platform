@@ -1,0 +1,38 @@
+# Version control
+.git/
+.gitignore
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# Python virtual environment & cache
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.pytest_cache/
+.pytest_cache/
+
+# Databases & local customer PII data
+*.sqlite3
+*.sqlite3-*
+data/Data2/
+data/temp_faces/
+data/02_intermediate_data/
+logs/
+backend/logs/
+
+# Frontend development & build artifacts
+frontend-react/node_modules/
+frontend-react/dist/
+frontend-react/.vite/
+
+# Testing & temporary
+.coverage
+htmlcov/
+tests/
+README.md

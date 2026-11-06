@@ -1,0 +1,139 @@
+# ==============================================================================
+# E-KYC Identity Verification Platform - Docker Compose Specification
+#
+# Services:
+#   1. db        - PostgreSQL 15 database with persistent storage and healthcheck
+#   2. migrate   - Dedicated Alembic migration service (runs once after db is healthy)
+#   3. backend   - FastAPI AI backend with OpenCV, FaceNet, and EasyOCR
+#   4. frontend  - Multi-stage React 18 production build with Nginx reverse proxy
+#
+# Startup Command: docker compose up --build -d
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. PostgreSQL Database Service
+  # ----------------------------------------------------------------------------
+  db:
+    image: postgres:15-alpine
+    container_name: ekyc-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-ekyc_db}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-ekyc_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - ekyc-network
+
+  # ----------------------------------------------------------------------------
+  # 2. Database Migration Runner (One-Shot Service)
+  # ----------------------------------------------------------------------------
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: ekyc-migrate
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-ekyc_db}
+      APP_ENV: ${APP_ENV:-development}
+    restart: "no"
+    networks:
+      - ekyc-network
+
+  # ----------------------------------------------------------------------------
+  # 3. FastAPI AI Backend Service
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: ekyc-backend
+    command: ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-ekyc_db}
+      APP_ENV: ${APP_ENV:-development}
+      ENABLE_DOCS: ${ENABLE_DOCS:-true}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@ekyc-platform.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@Secure2026!}
+      ADMIN_FULL_NAME: ${ADMIN_FULL_NAME:-System Administrator}
+      DEEPFACE_HOME: /app/data
+      EASYOCR_MODULE_PATH: /home/appuser/.EasyOCR
+    volumes:
+      - ai-models-cache:/home/appuser/.EasyOCR
+      - backend-logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - ekyc-network
+
+  # ----------------------------------------------------------------------------
+  # 4. React Production Frontend + Nginx Reverse Proxy
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: ekyc-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:80/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - ekyc-network
+
+# ==============================================================================
+# Persistent Named Volumes
+# ==============================================================================
+volumes:
+  # PostgreSQL database storage
+  db-data:
+    name: ekyc-db-data
+  # Cached AI models (EasyOCR weights)
+  ai-models-cache:
+    name: ekyc-ai-models-cache
+  # Application logs
+  backend-logs:
+    name: ekyc-backend-logs
+
+# ==============================================================================
+# Isolated Internal Network
+# ==============================================================================
+networks:
+  ekyc-network:
+    name: ekyc-network
+    driver: bridge
+

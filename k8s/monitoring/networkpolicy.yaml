@@ -1,0 +1,146 @@
+# ==============================================================================
+# Monitoring Stack NetworkPolicies
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ekyc-prometheus-network-policy
+  namespace: ekyc-platform
+  labels:
+    app: prometheus
+    app.kubernetes.io/component: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app: prometheus
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow inbound connections from Grafana and local kubectl port-forwarding
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grafana
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9090
+  egress:
+    # Allow Prometheus to scrape metrics targets
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ekyc-backend
+      ports:
+        - protocol: TCP
+          port: 8000
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres-exporter
+      ports:
+        - protocol: TCP
+          port: 9187
+    - to:
+        - podSelector:
+            matchLabels:
+              app: node-exporter
+      ports:
+        - protocol: TCP
+          port: 9100
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kube-state-metrics
+      ports:
+        - protocol: TCP
+          port: 8080
+    # DNS resolution
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ekyc-grafana-network-policy
+  namespace: ekyc-platform
+  labels:
+    app: grafana
+    app.kubernetes.io/component: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app: grafana
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow incoming HTTP traffic on port 3000 (port-forwarding / cluster internal)
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 3000
+  egress:
+    # Allow querying Prometheus datasource
+    - to:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+    # DNS resolution
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ekyc-postgres-exporter-network-policy
+  namespace: ekyc-platform
+  labels:
+    app: postgres-exporter
+    app.kubernetes.io/component: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres-exporter
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9187
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ekyc-db
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+

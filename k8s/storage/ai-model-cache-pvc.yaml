@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ekyc-ai-models-cache
+  namespace: ekyc-platform
+  labels:
+    app.kubernetes.io/name: ekyc-ai-models-cache
+    app.kubernetes.io/part-of: ekyc-platform
+    app.kubernetes.io/component: storage
+spec:
+  accessModes:
+    # ReadWriteOnce allows single-node write access.
+    # Note: If scaling the backend to multiple replicas across distinct nodes,
+    # use a ReadWriteMany (RWX) storage class (e.g., NFS, AWS EFS, Azure Files),
+    # or pre-bake model weights directly into the container image.
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  # storageClassName: standard # Uncomment and customize if using specific CSI provisioner
+

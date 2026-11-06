@@ -1,0 +1,154 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ekyc-backend
+  namespace: ekyc-platform
+  labels:
+    app.kubernetes.io/name: ekyc-backend
+    app.kubernetes.io/part-of: ekyc-platform
+    app.kubernetes.io/component: backend
+spec:
+  # Initial replica count is 1.
+  # ARCHITECTURAL NOTE: Scaling to multiple replicas requires either:
+  # 1. A ReadWriteMany (RWX) storage class for ekyc-ai-models-cache (e.g. NFS/EFS), OR
+  # 2. Pre-baking EasyOCR and DeepFace model weights directly into the container image.
+  replicas: 1
+  strategy:
+    type: Recreate # Required when using ReadWriteOnce persistent storage across pod restarts
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ekyc-backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ekyc-backend
+        app.kubernetes.io/part-of: ekyc-platform
+        app.kubernetes.io/component: backend
+    spec:
+      terminationGracePeriodSeconds: 60 # Allow in-flight AI verification requests to finish gracefully
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: wait-for-db-and-migrations
+          image: ekyc-backend:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for database service to be ready..."
+              until python -c "import socket; s = socket.socket(); s.settimeout(2); s.connect(('db', 5432)); s.close()"; do
+                echo "PostgreSQL is not ready yet - sleeping 2s..."
+                sleep 2
+              done
+              echo "Database is reachable! Backend startup proceeding."
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      containers:
+        - name: api
+          image: ekyc-backend:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - uvicorn
+            - backend.app.main:app
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8000"
+            - --workers
+            - "2"
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: ekyc-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ekyc-secrets
+                  key: DATABASE_URL
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ekyc-secrets
+                  key: JWT_SECRET_KEY
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 2000m
+              memory: 3Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          # Startup Probe: Grants initial warmup time for PyTorch / EasyOCR / DeepFace
+          startupProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30 # 30 * 5s = 150s startup window
+          # Readiness Probe: Removes pod from Service endpoints if temporarily degraded
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Liveness Probe: Restarts deadlocked or crashed container
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            # Persistent AI Model Cache
+            - name: ai-models-cache
+              mountPath: /home/appuser/.EasyOCR
+            # Ephemeral local scratch space for temporary face crops & logs
+            - name: temp-faces
+              mountPath: /app/data/temp_faces
+            - name: app-logs
+              mountPath: /app/logs
+            - name: tmp-dir
+              mountPath: /tmp
+      volumes:
+        - name: ai-models-cache
+          persistentVolumeClaim:
+            claimName: ekyc-ai-models-cache
+        - name: temp-faces
+          emptyDir: {}
+        - name: app-logs
+          emptyDir: {}
+        - name: tmp-dir
+          emptyDir: {}
+

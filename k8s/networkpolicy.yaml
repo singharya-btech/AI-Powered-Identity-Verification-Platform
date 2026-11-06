@@ -1,0 +1,84 @@
+# ==============================================================================
+# Kubernetes NetworkPolicy Hardening for E-KYC Platform
+#
+# Enforces zero-trust internal network segmentation:
+# 1. PostgreSQL Database: ONLY accepts incoming connections from backend and migration pods.
+# 2. Backend: ONLY accepts incoming traffic on port 8000 from frontend and ingress controllers.
+# 3. Frontend: Accepts HTTP traffic on port 80.
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ekyc-db-network-policy
+  namespace: ekyc-platform
+  labels:
+    app.kubernetes.io/name: ekyc-db-network-policy
+    app.kubernetes.io/part-of: ekyc-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ekyc-db
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow ingress on port 5432 ONLY from backend, migration, and monitoring exporter pods
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ekyc-backend
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ekyc-db-migrate
+        - podSelector:
+            matchLabels:
+              app: postgres-exporter
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ekyc-backend-network-policy
+  namespace: ekyc-platform
+  labels:
+    app.kubernetes.io/name: ekyc-backend-network-policy
+    app.kubernetes.io/part-of: ekyc-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ekyc-backend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow incoming traffic on port 8000 from frontend, ingress controllers, and Prometheus scraper
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ekyc-frontend
+        - podSelector:
+            matchLabels:
+              app: prometheus
+        - namespaceSelector: {} # Allows ingress controller from ingress-nginx namespace
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    # Allow outbound traffic to PostgreSQL database
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ekyc-db
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+

@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ekyc-platform
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: ekyc-platform
+      app.kubernetes.io/managed-by: kustomize
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.example.yaml
+  - storage/ai-model-cache-pvc.yaml
+  - database/pvc.yaml
+  - database/service.yaml
+  - database/statefulset.yaml
+  - migrations/migration-job.yaml
+  - backend/service.yaml
+  - backend/deployment.yaml
+  - backend/hpa.yaml
+  - frontend/service.yaml
+  - frontend/deployment.yaml
+  - ingress/ingress.yaml
+  - networkpolicy.yaml
+  - monitoring

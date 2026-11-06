@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ekyc-platform
+
+resources:
+  - pvc.yaml
+  - secret.example.yaml
+  - configmap-datasources.yaml
+  - configmap-dashboards.yaml
+  - service.yaml
+  - deployment.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: grafana-dashboards-json
+    files:
+      - dashboards/app-overview.json
+      - dashboards/kyc-processing.json
+      - dashboards/postgresql.json
+      - dashboards/kubernetes-infrastructure.json
+

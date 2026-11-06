@@ -1,0 +1,74 @@
+# ==============================================================================
+# Kubernetes Ingress Configuration for E-KYC Platform
+#
+# PREREQUISITE:
+#   Ingress Controller (e.g. ingress-nginx) must be installed in your cluster:
+#     kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.1/deploy/static/provider/cloud/deploy.yaml
+#
+# LOCAL DNS HOST ENTRY:
+#   Add the following entry to your hosts file (C:\Windows\System32\drivers\etc\hosts or /etc/hosts):
+#     127.0.0.1  ekyc.local
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ekyc-ingress
+  namespace: ekyc-platform
+  labels:
+    app.kubernetes.io/name: ekyc-ingress
+    app.kubernetes.io/part-of: ekyc-platform
+  annotations:
+    # Ingress Controller Class
+    kubernetes.io/ingress.class: nginx
+
+    # Upload body size limit (25MB to accommodate high-res document & selfie uploads)
+    nginx.ingress.kubernetes.io/proxy-body-size: 25m
+
+    # Upstream timeouts for CPU-heavy FaceNet and EasyOCR neural processing
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "180"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "180"
+
+    # Preserved client IP and security headers
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    # Named Virtual Host Route
+    - host: ekyc.local
+      http:
+        paths:
+          # Route /api/ traffic directly to the FastAPI Backend Service
+          - path: /api/
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8000
+          # Route root and SPA traffic to the React Frontend Service
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+    # Fallback IP / Default Host Route (enables access via Minikube tunnel or direct Cluster IP)
+    - http:
+        paths:
+          - path: /api/
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+

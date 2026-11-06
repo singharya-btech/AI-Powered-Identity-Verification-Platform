@@ -1,0 +1,73 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+.venv/
+env/
+venv/
+ENV/
+
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+.ekyc-id-hash-key
+
+# Database and SQLite data
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+data/*.sqlite3
+data/.ekyc-id-hash-key
+
+# Testing and Caches
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Frontend Dependencies and Builds
+node_modules/
+frontend-react/node_modules/
+frontend-react/dist/
+frontend-react/.vite/
+
+# Database dumps and archives
+*.sql
+*.dump
+*.tar
+*.tar.gz
+
+# AI Model weights and biometric models
+data/models/*.pth
+data/models/*.pt
+data/models/*.onnx
+data/.deepface/
+data/.deepface/**
+
+# Identity Documents, Selfies, and Biometric Data (STRICT PRIVACY)
+data/Data2/
+data/Data2/**
+data/temp_faces/
+data/temp_faces/**
+data/02_intermediate_data/
+data/02_intermediate_data/**
+data/**/*.jpg
+data/**/*.jpeg
+data/**/*.png
+data/**/*.webp
+data/**/*.pdf
+data/**/*.bmp
+
+# Logs
+logs/*.log
+*.log
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+

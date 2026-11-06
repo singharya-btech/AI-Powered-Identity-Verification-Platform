@@ -1,0 +1,117 @@
+# ==============================================================================
+# GitLab CI/CD Pipeline Configuration (.gitlab-ci.yml)
+# AI-Powered E-KYC Identity Verification Platform
+# Pinned to Python 3.11 & Node.js 20 runtime environments
+# ==============================================================================
+
+stages:
+  - test
+  - quality
+  - build
+  - package
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  BACKEND_IMAGE: $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHORT_SHA
+  FRONTEND_IMAGE: $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHORT_SHA
+
+# ------------------------------------------------------------------------------
+# 1. Backend Automated Testing (pytest + isolated SQLite in-memory DB)
+# ------------------------------------------------------------------------------
+backend:test:
+  stage: test
+  image: python:3.11-slim
+  variables:
+    APP_ENV: testing
+    DATABASE_URL: sqlite:///:memory:
+    JWT_SECRET_KEY: test-secret-key-for-testing-only-at-least-32-chars-long
+    PYTHONPATH: .
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 gcc libpq-dev
+    - pip install --no-cache-dir --upgrade pip
+    - pip install --no-cache-dir -r requirements.txt
+    - pip install --no-cache-dir pytest pytest-cov
+  script:
+    - python -m pytest backend/tests/ -v --junitxml=backend-test-report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: backend-test-report.xml
+    expire_in: 7 days
+
+# ------------------------------------------------------------------------------
+# 2. Frontend Unit & Component Testing (Vitest)
+# ------------------------------------------------------------------------------
+frontend:test:
+  stage: test
+  image: node:20-alpine
+  before_script:
+    - cd frontend-react
+    - npm ci
+  script:
+    - npm test
+  artifacts:
+    when: always
+    expire_in: 7 days
+
+# ------------------------------------------------------------------------------
+# 3. Frontend Static Type Checking (TypeScript tsc --noEmit)
+# ------------------------------------------------------------------------------
+frontend:typecheck:
+  stage: quality
+  image: node:20-alpine
+  before_script:
+    - cd frontend-react
+    - npm ci
+  script:
+    - npm run lint
+
+# ------------------------------------------------------------------------------
+# 4. Frontend Production Build Validation (Vite)
+# ------------------------------------------------------------------------------
+frontend:build:
+  stage: build
+  image: node:20-alpine
+  before_script:
+    - cd frontend-react
+    - npm ci
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - frontend-react/dist/
+    expire_in: 1 day
+
+# ------------------------------------------------------------------------------
+# 5. Container Packaging & GitLab Container Registry Publishing
+# (Executes only on main branch commits)
+# ------------------------------------------------------------------------------
+docker:backend:
+  stage: package
+  image: docker:24-cli
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -f Dockerfile.backend -t $BACKEND_IMAGE -t $CI_REGISTRY_IMAGE/backend:latest .
+    - docker push $BACKEND_IMAGE
+    - docker push $CI_REGISTRY_IMAGE/backend:latest
+  only:
+    - main
+
+docker:frontend:
+  stage: package
+  image: docker:24-cli
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -f Dockerfile.frontend -t $FRONTEND_IMAGE -t $CI_REGISTRY_IMAGE/frontend:latest .
+    - docker push $FRONTEND_IMAGE
+    - docker push $CI_REGISTRY_IMAGE/frontend:latest
+  only:
+    - main
+
