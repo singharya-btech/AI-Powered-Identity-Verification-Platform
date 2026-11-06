@@ -24,8 +24,8 @@ backend:test:
   image: python:3.11-slim
   variables:
     APP_ENV: testing
-    DATABASE_URL: sqlite:///:memory:
-    JWT_SECRET_KEY: test-secret-key-for-testing-only-at-least-32-chars-long
+    DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ekyc_db:
+    JWT_SECRET_KEY: change-this-in-production-to-a-secure-random-secret-key-at-least-32-bytes
     PYTHONPATH: .
   before_script:
     - apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 gcc libpq-dev
