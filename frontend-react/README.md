@@ -131,8 +131,9 @@ npm run dev
 ```
 Available at [http://127.0.0.1:5173](http://127.0.0.1:5173).
 
-### Run Automated Tests (Vitest)
+### Run Local Automated Tests (Vitest)
 ```bash
+# Tests are maintained locally and excluded from public git
 npm test
 ```
 Executes all 31 unit, integration, and component tests using `jsdom`.

@@ -226,3 +226,4 @@ To remove all resources:
 ```bash
 kubectl delete -k k8s/
 ```
+

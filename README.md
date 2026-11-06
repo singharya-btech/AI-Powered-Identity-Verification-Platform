@@ -198,15 +198,11 @@ kubectl get all -n ekyc-platform
 
 ---
 
-## 🧪 Automated Testing & Quality Assurance
+## 🔒 Privacy, Database & Test Isolation
 
-The codebase includes comprehensive automated test coverage for both backend and frontend:
-
-| Component | Framework | Test Count | Scope | Command |
-| :--- | :--- | :--- | :--- | :--- |
-| **Backend API & AI** | Pytest + AnyIO | **86 Tests** | Auth, OCR, FaceNet, Admin Analytics, Reporting, Migrations, Metrics | `pytest backend/tests/ -v` |
-| **Frontend UI** | Vitest + Testing Library | **31 Tests** | Verification Flow, Camera, Queue, Review Modal, Auth Context | `npm --prefix frontend-react test` |
-| **Type Checking** | TypeScript Compiler | **Pass** | Static typing across all components and services | `npm --prefix frontend-react run build` |
+- **Zero Database Data on GitHub:** The repository strictly excludes database storage volumes (`db-data`), PostgreSQL dumps, SQLite database files (`*.sqlite*`, `*.db`), and real credentials (`.env`). Anyone cloning the repository uses Alembic migrations to initialize their own fresh, isolated database.
+- **Local Test Isolation:** Comprehensive test suites (86 backend tests and 31 frontend tests) are maintained locally for verification and excluded from the public Git repository via `.gitignore` to keep the public codebase clean, private, and lightweight.
+- **Type Checking & Build Validation:** TypeScript compilation (`npm run build`) and Python dependency verification validate the code structure.
 
 ---
 

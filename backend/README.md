@@ -152,8 +152,10 @@ python run_backend.py
 uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-### Run Test Suite
+### Run Local Test Suite (Development)
 ```bash
+# Tests are maintained locally and excluded from public git
 pytest backend/tests/ -v
 ```
 All 86 tests run against an isolated SQLite in-memory database.
+
