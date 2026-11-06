@@ -76,7 +76,7 @@ def provision_admin(
                 existing_user.is_active = True
                 existing_user.is_verified = True
                 db.commit()
-                return True, f"Administrator account '{normalized_email}' credentials synchronized with .env successfully."
+                return True, f"Administrator account '{normalized_email}' already exists; credentials synchronized with .env successfully."
             else:
                 # Promote existing customer to admin
                 existing_user.role_id = admin_role.id

@@ -13,6 +13,7 @@ ENV/
 .env
 .env.*
 !.env.example
+!.env.production.example
 .ekyc-id-hash-key
 
 # Database and SQLite data
