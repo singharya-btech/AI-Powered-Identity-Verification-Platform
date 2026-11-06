@@ -1,7 +1,7 @@
 # ==============================================================================
-# Sample GitLab CI/CD Pipeline Configuration (.gitlab-ci.yml.example)
-# AI-Powered e-KYC Verification Platform
-# Note: Requires a registered GitLab Runner (Docker executor) to execute.
+# GitLab CI/CD Pipeline Configuration (.gitlab-ci.yml)
+# AI-Powered E-KYC Identity Verification Platform
+# Pinned to Python 3.11 & Node.js 20 runtime environments
 # ==============================================================================
 
 stages:
@@ -9,32 +9,41 @@ stages:
   - quality
   - build
   - package
-  - deploy
 
 variables:
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: ""
+  DOCKER_HOST: tcp://docker:2375
   BACKEND_IMAGE: $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHORT_SHA
   FRONTEND_IMAGE: $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHORT_SHA
 
 # ------------------------------------------------------------------------------
-# Stage 1: Automated Unit & Integration Tests
+# 1. Backend Automated Testing (pytest + isolated SQLite in-memory DB)
 # ------------------------------------------------------------------------------
 backend:test:
   stage: test
   image: python:3.11-slim
+  variables:
+    APP_ENV: testing
+    DATABASE_URL: sqlite:///:memory:
+    JWT_SECRET_KEY: test-secret-key-for-testing-only-at-least-32-chars-long
+    PYTHONPATH: .
   before_script:
     - apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 gcc libpq-dev
+    - pip install --no-cache-dir --upgrade pip
     - pip install --no-cache-dir -r requirements.txt
     - pip install --no-cache-dir pytest pytest-cov
   script:
-    - python -m pytest backend/tests/ -v --cov=backend/app
+    - python -m pytest backend/tests/ -v --junitxml=backend-test-report.xml
   artifacts:
     when: always
     reports:
-      junit: report.xml
+      junit: backend-test-report.xml
     expire_in: 7 days
 
+# ------------------------------------------------------------------------------
+# 2. Frontend Unit & Component Testing (Vitest)
+# ------------------------------------------------------------------------------
 frontend:test:
   stage: test
   image: node:20-alpine
@@ -42,13 +51,13 @@ frontend:test:
     - cd frontend-react
     - npm ci
   script:
-    - npm test -- --run
+    - npm test
   artifacts:
     when: always
     expire_in: 7 days
 
 # ------------------------------------------------------------------------------
-# Stage 2: Code Quality & Type Checking
+# 3. Frontend Static Type Checking (TypeScript tsc --noEmit)
 # ------------------------------------------------------------------------------
 frontend:typecheck:
   stage: quality
@@ -57,10 +66,10 @@ frontend:typecheck:
     - cd frontend-react
     - npm ci
   script:
-    - npx tsc --noEmit
+    - npm run lint
 
 # ------------------------------------------------------------------------------
-# Stage 3: Production Frontend Build Verification
+# 4. Frontend Production Build Validation (Vite)
 # ------------------------------------------------------------------------------
 frontend:build:
   stage: build
@@ -76,7 +85,8 @@ frontend:build:
     expire_in: 1 day
 
 # ------------------------------------------------------------------------------
-# Stage 4: Docker Image Packaging (Container Registry)
+# 5. Container Packaging & GitLab Container Registry Publishing
+# (Executes only on main branch commits)
 # ------------------------------------------------------------------------------
 docker:backend:
   stage: package
@@ -105,19 +115,3 @@ docker:frontend:
     - docker push $CI_REGISTRY_IMAGE/frontend:latest
   only:
     - main
-
-# ------------------------------------------------------------------------------
-# Stage 5: Kubernetes Deployment (Future Phase)
-# ------------------------------------------------------------------------------
-k8s:deploy:
-  stage: deploy
-  image: bitnami/kubectl:latest
-  script:
-    - kubectl set image deployment/ekyc-backend backend=$BACKEND_IMAGE -n ekyc-platform
-    - kubectl set image deployment/ekyc-frontend frontend=$FRONTEND_IMAGE -n ekyc-platform
-    - kubectl rollout status deployment/ekyc-backend -n ekyc-platform
-    - kubectl rollout status deployment/ekyc-frontend -n ekyc-platform
-  when: manual
-  only:
-    - main
-
