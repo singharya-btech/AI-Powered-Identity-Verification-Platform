@@ -118,7 +118,7 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ekyc_db
 
 ### Step 3: Set Up Python Virtual Environment & Dependencies
 
-In the project root directory (`c:\Users\arya singh\EKYC\Project1`):
+In the project root directory:
 
 ```powershell
 # 1. Create virtual environment (if not already created)
@@ -444,3 +444,4 @@ sudo ufw enable
 | **Frontend Production Build** | `npm --prefix frontend-react run build` | Compiles and validates TypeScript types and generates optimized bundle. |
 | **Live Database Health** | `curl -f http://127.0.0.1:8000/api/v1/health` | Verifies runtime status and live PostgreSQL connectivity. |
 | **Metrics Telemetry** | `curl -s http://127.0.0.1:8000/metrics` | Dumps Prometheus telemetry for Grafana scraping. |
+
