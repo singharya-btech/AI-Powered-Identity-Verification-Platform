@@ -29,7 +29,7 @@ data/.ekyc-id-hash-key
 db-data/
 postgres-data/
 
-# Testing, Test Suites and Caches (Excluded from Public Git/GitHub)
+# Testing, Test Suites and Caches (Excluded from Git)
 .pytest_cache/
 .coverage
 htmlcov/

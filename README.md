@@ -97,8 +97,8 @@ The entire full-stack application, database, and migrations can be launched with
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/<your-username>/ai-ekyc-platform.git
-cd ai-ekyc-platform
+git clone http://<gitlab-host>:8929/root/ekyc-platform.git
+cd ekyc-platform
 
 # 2. Configure environment
 cp .env.example .env
@@ -163,7 +163,7 @@ Deploying to a remote Ubuntu / Debian server:
 
 ```bash
 # 1. Clone project onto server
-git clone https://github.com/<your-username>/ai-ekyc-platform.git /opt/ekyc-platform
+git clone http://<gitlab-host>:8929/root/ekyc-platform.git /opt/ekyc-platform
 cd /opt/ekyc-platform
 
 # 2. Configure production environment
@@ -200,8 +200,8 @@ kubectl get all -n ekyc-platform
 
 ## 🔒 Privacy, Database & Test Isolation
 
-- **Zero Database Data on GitHub:** The repository strictly excludes database storage volumes (`db-data`), PostgreSQL dumps, SQLite database files (`*.sqlite*`, `*.db`), and real credentials (`.env`). Anyone cloning the repository uses Alembic migrations to initialize their own fresh, isolated database.
-- **Local Test Isolation:** Comprehensive test suites (86 backend tests and 31 frontend tests) are maintained locally for verification and excluded from the public Git repository via `.gitignore` to keep the public codebase clean, private, and lightweight.
+- **Zero Database Data in Git Repository:** The repository strictly excludes database storage volumes (`db-data`), PostgreSQL dumps, SQLite database files (`*.sqlite*`, `*.db`), and real credentials (`.env`). Anyone cloning the repository uses Alembic migrations to initialize their own fresh, isolated database.
+- **Local Test Isolation:** Comprehensive test suites (86 backend tests and 31 frontend tests) are maintained locally for verification and excluded from the Git repository via `.gitignore` to keep the codebase clean, private, and lightweight.
 - **Type Checking & Build Validation:** TypeScript compilation (`npm run build`) and Python dependency verification validate the code structure.
 
 ---
