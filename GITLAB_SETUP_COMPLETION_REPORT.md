@@ -1,4 +1,4 @@
-# TASK 12: Self-Hosted GitLab Community Edition (CE) Deployment Report
+# Self-Hosted GitLab Community Edition (CE) Deployment Report
 
 ## Executive Summary
 
