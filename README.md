@@ -215,7 +215,3 @@ kubectl get all -n ekyc-platform
 5. **Zero-Trust Network Policies:** Kubernetes manifests enforce strict egress/ingress isolation between frontend, backend, database, and telemetry pods.
 
 ---
-
-## 📄 License
-
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
